@@ -1,0 +1,1221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vault Integration Architecture Guide</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        html {
+            scroll-behavior: smooth;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+        
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 60px 20px;
+            text-align: center;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+        }
+        
+        header h1 {
+            font-size: 3em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+        
+        header p {
+            font-size: 1.2em;
+            opacity: 0.95;
+        }
+        
+        nav {
+            background: white;
+            padding: 20px;
+            position: sticky;
+            top: 0;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            z-index: 100;
+        }
+        
+        nav .container {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+        
+        nav a {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 600;
+            padding: 8px 16px;
+            border-radius: 4px;
+            transition: all 0.3s ease;
+        }
+        
+        nav a:hover {
+            background: #667eea;
+            color: white;
+        }
+        
+        main {
+            padding: 40px 20px;
+        }
+        
+        section {
+            background: white;
+            border-radius: 12px;
+            padding: 40px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            animation: slideIn 0.5s ease-out;
+        }
+        
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        h2 {
+            color: #667eea;
+            font-size: 2em;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 3px solid #667eea;
+        }
+        
+        h3 {
+            color: #764ba2;
+            font-size: 1.4em;
+            margin-top: 30px;
+            margin-bottom: 15px;
+        }
+        
+        h4 {
+            color: #667eea;
+            font-size: 1.1em;
+            margin-top: 20px;
+            margin-bottom: 10px;
+        }
+        
+        .summary-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin: 30px 0;
+        }
+        
+        .card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 25px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease;
+        }
+        
+        .card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .card h3 {
+            color: white;
+            margin-top: 0;
+            font-size: 1.3em;
+        }
+        
+        .card p {
+            opacity: 0.95;
+            font-size: 0.95em;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+        
+        th {
+            background: #667eea;
+            color: white;
+            padding: 15px;
+            text-align: left;
+            font-weight: 600;
+        }
+        
+        td {
+            padding: 12px 15px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        tr:hover {
+            background: #f9f9f9;
+        }
+        
+        .diagram-container {
+            background: #f9f9f9;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 30px 0;
+            border: 2px solid #667eea;
+            display: flex;
+            justify-content: center;
+            overflow-x: auto;
+        }
+        
+        .mermaid {
+            display: flex;
+            justify-content: center;
+        }
+        
+        .badge {
+            display: inline-block;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            font-weight: 600;
+            margin: 5px 5px 5px 0;
+        }
+        
+        .badge-success {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .badge-warning {
+            background: #fff3cd;
+            color: #856404;
+        }
+        
+        .badge-danger {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .badge-info {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+        
+        .timeline {
+            position: relative;
+            padding: 20px 0;
+        }
+        
+        .timeline-item {
+            padding-left: 40px;
+            position: relative;
+            margin-bottom: 20px;
+        }
+        
+        .timeline-item::before {
+            content: '';
+            width: 12px;
+            height: 12px;
+            background: #667eea;
+            border-radius: 50%;
+            position: absolute;
+            left: 0;
+            top: 5px;
+        }
+        
+        .timeline-item::after {
+            content: '';
+            width: 2px;
+            height: 100%;
+            background: #667eea;
+            position: absolute;
+            left: 5px;
+            top: 25px;
+        }
+        
+        .timeline-item:last-child::after {
+            display: none;
+        }
+        
+        .timeline-item h4 {
+            margin: 0 0 5px 0;
+            color: #667eea;
+        }
+        
+        .checklist {
+            list-style: none;
+            padding: 0;
+        }
+        
+        .checklist li {
+            padding: 10px 0;
+            padding-left: 30px;
+            position: relative;
+        }
+        
+        .checklist li::before {
+            content: '✓';
+            position: absolute;
+            left: 0;
+            color: #28a745;
+            font-weight: bold;
+            font-size: 1.2em;
+        }
+        
+        .comparison-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+        
+        .comparison-item {
+            border: 2px solid #667eea;
+            border-radius: 8px;
+            padding: 20px;
+            background: #f9f9f9;
+        }
+        
+        .comparison-item h4 {
+            margin-top: 0;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #667eea;
+        }
+        
+        .pros, .cons {
+            margin-top: 15px;
+        }
+        
+        .pros h5, .cons h5 {
+            font-size: 0.95em;
+            color: #764ba2;
+            margin: 10px 0 8px 0;
+        }
+        
+        .pros ul {
+            color: #28a745;
+        }
+        
+        .cons ul {
+            color: #dc3545;
+        }
+        
+        ul, ol {
+            margin-left: 20px;
+            margin-bottom: 15px;
+        }
+        
+        li {
+            margin-bottom: 8px;
+        }
+        
+        code {
+            background: #f4f4f4;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            color: #d63384;
+        }
+        
+        pre {
+            background: #2d2d2d;
+            color: #f8f8f2;
+            padding: 20px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 20px 0;
+            font-size: 0.9em;
+            line-height: 1.4;
+        }
+        
+        .highlight {
+            background: #fff3cd;
+            padding: 15px;
+            border-left: 4px solid #ffc107;
+            border-radius: 4px;
+            margin: 20px 0;
+        }
+        
+        .success {
+            background: #d4edda;
+            border-left-color: #28a745;
+            color: #155724;
+        }
+        
+        .danger {
+            background: #f8d7da;
+            border-left-color: #dc3545;
+            color: #721c24;
+        }
+        
+        .info {
+            background: #d1ecf1;
+            border-left-color: #0c5460;
+            color: #0c5460;
+        }
+        
+        footer {
+            background: #2c3e50;
+            color: white;
+            text-align: center;
+            padding: 30px 20px;
+            margin-top: 60px;
+        }
+        
+        .back-to-top {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            background: #667eea;
+            color: white;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+            font-size: 1.5em;
+        }
+        
+        .back-to-top.show {
+            opacity: 1;
+            visibility: visible;
+        }
+        
+        @media (max-width: 768px) {
+            header h1 {
+                font-size: 2em;
+            }
+            
+            nav .container {
+                flex-direction: column;
+            }
+            
+            section {
+                padding: 20px;
+            }
+            
+            .summary-cards {
+                grid-template-columns: 1fr;
+            }
+            
+            .diagram-container {
+                overflow-x: auto;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1>🏗️ Vault Integration Architecture</h1>
+            <p>Comprehensive Guide to Integrating vault-agent + vault-config-operator + MCP Policy-Gate</p>
+        </div>
+    </header>
+    
+    <nav>
+        <div class="container">
+            <a href="#overview">Overview</a>
+            <a href="#systems">Systems</a>
+            <a href="#overlaps">Overlaps</a>
+            <a href="#integration">Integration</a>
+            <a href="#phases">Roadmap</a>
+            <a href="#outcomes">Outcomes</a>
+        </div>
+    </nav>
+    
+    <main>
+        <div class="container">
+            
+            <!-- OVERVIEW SECTION -->
+            <section id="overview">
+                <h2>📊 Executive Summary</h2>
+                
+                <p>This guide presents a comprehensive architecture for integrating three complementary systems that manage HashiCorp Vault:</p>
+                
+                <div class="summary-cards">
+                    <div class="card">
+                        <h3>🤖 Vault-Agent</h3>
+                        <p><strong>LLM-based operational agent</strong> for interactive troubleshooting, diagnostics, and real-time Vault cluster management via chat UI</p>
+                    </div>
+                    <div class="card">
+                        <h3>⚙️ Vault-Config-Operator</h3>
+                        <p><strong>Kubernetes operator</strong> for declarative infrastructure-as-code configuration management with GitOps integration</p>
+                    </div>
+                    <div class="card">
+                        <h3>🛡️ MCP Policy-Gate</h3>
+                        <p><strong>AI-SDLC governance</strong> layer providing policy-as-code enforcement for prompt safety, tool manifest control, and regression testing</p>
+                    </div>
+                </div>
+                
+                <h3>The Core Problem</h3>
+                <div class="highlight danger">
+                    <strong>⚠️ Critical Issue:</strong> Both vault-agent and vault-config-operator can create/modify Vault configurations, but <strong>without coordination</strong>. This creates:
+                    <ul style="margin-top: 10px;">
+                        <li>Conflicting writes (last write wins)</li>
+                        <li>Lost configuration changes</li>
+                        <li>No audit trail for manual edits</li>
+                        <li>Scattered credentials across systems</li>
+                    </ul>
+                </div>
+                
+                <h3>The Solution: Complementary Model</h3>
+                <div class="highlight success">
+                    <strong>✓ Proposed Architecture:</strong> Give each system a <strong>distinct responsibility</strong>:
+                    <ul style="margin-top: 10px;">
+                        <li><strong>Operator</strong> = Sole authority for declarative state (in git)</li>
+                        <li><strong>Agent</strong> = Observability + emergency response only (read-only)</li>
+                        <li><strong>Policy-Gate</strong> = Governance layer ensuring safety (gates PRs)</li>
+                    </ul>
+                </div>
+            </section>
+            
+            <!-- SYSTEMS SECTION -->
+            <section id="systems">
+                <h2>🔍 System Architecture Details</h2>
+                
+                <h3>1️⃣ Vault-Agent (vault-agent-web)</h3>
+                
+                <h4>What It Is</h4>
+                <p>Interactive LLM-powered agent for real-time Vault cluster operations with web chat UI and CLI mode.</p>
+                
+                <h4>Architecture</h4>
+                <div class="diagram-container">
+                    <div class="mermaid">
+graph LR
+    User["👤 User<br/>(Firebase Auth)"]
+    AAD["🔐 Azure AD<br/>(admin/readonly)"]
+    Web["💬 Web Chat<br/>(FastAPI)"]
+    CLI["⌨️ CLI<br/>Interface"]
+    Agent["🤖 LangChain<br/>Agent + CrewAI"]
+    Tools["🛠️ Vault Tools"]
+    Vault["🔑 Vault API"]
+    
+    User --> AAD
+    AAD --> Web
+    AAD --> CLI
+    Web --> Agent
+    CLI --> Agent
+    Agent --> Tools
+    Tools --> Vault
+    
+    style User fill:#667eea,stroke:#764ba2,color:#fff
+    style AAD fill:#764ba2,stroke:#667eea,color:#fff
+    style Web fill:#667eea,stroke:#764ba2,color:#fff
+    style CLI fill:#667eea,stroke:#764ba2,color:#fff
+    style Agent fill:#764ba2,stroke:#667eea,color:#fff
+    style Tools fill:#ff6b6b,stroke:#764ba2,color:#fff
+    style Vault fill:#dc3545,stroke:#764ba2,color:#fff
+                    </div>
+                </div>
+                
+                <h4>Key Tools</h4>
+                <table>
+                    <tr>
+                        <th>Tool</th>
+                        <th>Scope</th>
+                        <th>Permission Level</th>
+                        <th>Purpose</th>
+                    </tr>
+                    <tr>
+                        <td><code>get_cluster_snapshot()</code></td>
+                        <td>Read-only</td>
+                        <td>Everyone</td>
+                        <td>Observe cluster health & node status</td>
+                    </tr>
+                    <tr>
+                        <td><code>run_vault_command()</code></td>
+                        <td>Variable</td>
+                        <td>ACL-gated</td>
+                        <td>Execute Vault CLI commands</td>
+                    </tr>
+                    <tr>
+                        <td><code>seal_node()</code></td>
+                        <td>Destructive</td>
+                        <td>Admin-only</td>
+                        <td>Seal a node (rare emergency)</td>
+                    </tr>
+                    <tr>
+                        <td><code>unseal_node()</code></td>
+                        <td>Destructive</td>
+                        <td>Admin-only</td>
+                        <td>Unseal a node with AZ-failure logic</td>
+                    </tr>
+                </table>
+                
+                <h4>Advantages & Disadvantages</h4>
+                <div class="comparison-grid">
+                    <div class="comparison-item">
+                        <h4>✅ Advantages</h4>
+                        <div class="pros">
+                            <h5>Intelligence</h5>
+                            <p>LLM diagnoses problems ("Why won't this unseal?")</p>
+                            <h5>Interactive</h5>
+                            <p>Real-time chat UI with dry-run mode</p>
+                            <h5>Agility</h5>
+                            <p>Ad-hoc operations without YAML boilerplate</p>
+                            <h5>Multi-Provider LLM</h5>
+                            <p>Claude, Gemini, OpenAI support</p>
+                        </div>
+                    </div>
+                    <div class="comparison-item">
+                        <h4>❌ Disadvantages</h4>
+                        <div class="cons">
+                            <h5>No Version Control</h5>
+                            <p>Config changes live in Vault API, not git</p>
+                            <h5>No Drift Detection</h5>
+                            <p>Manual changes survive forever</p>
+                            <h5>Credential Sprawl</h5>
+                            <p>Pod needs full Vault admin token</p>
+                            <h5>Single-Instance</h5>
+                            <p>Can't scale or isolate by team/namespace</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <h3>2️⃣ Vault Config Operator (RedHat COP)</h3>
+                
+                <h4>What It Is</h4>
+                <p>Kubernetes-native operator implementing declarative configuration management via CRDs.</p>
+                
+                <h4>Reconciliation Flow</h4>
+                <div class="diagram-container">
+                    <div class="mermaid">
+graph TD
+    A["📋 CRD Created/<br/>Updated in K8s"]
+    B["👁️ Reconciler Watches<br/>for Changes"]
+    C["🔍 Prepare Internal<br/>Values"]
+    D["🔐 Prepare TLS<br/>Config"]
+    E["📝 CreateOrUpdate<br/>Read Current → Diff → Write if Different"]
+    F["✨ Enrich Status<br/>with Vault Data"]
+    G["🎯 Status Conditions<br/>Success/Failure"]
+    
+    A --> B
+    B --> C
+    C --> D
+    D --> E
+    E --> F
+    F --> G
+    
+    style A fill:#667eea,color:#fff
+    style B fill:#764ba2,color:#fff
+    style C fill:#667eea,color:#fff
+    style D fill:#667eea,color:#fff
+    style E fill:#764ba2,color:#fff
+    style F fill:#667eea,color:#fff
+    style G fill:#28a745,color:#fff
+                    </div>
+                </div>
+                
+                <h4>CRD Categories (100+)</h4>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; margin: 20px 0;">
+                    <div style="background: #f0f0f0; padding: 15px; border-radius: 8px;">
+                        <strong>Auth Engines</strong>
+                        <ul style="margin: 10px 0 0 20px;">
+                            <li>AuthEngineMount</li>
+                            <li>KubernetesAuthEngineConfig</li>
+                            <li>AzureAuthEngineConfig</li>
+                            <li>LDAPAuthEngineConfig</li>
+                        </ul>
+                    </div>
+                    <div style="background: #f0f0f0; padding: 15px; border-radius: 8px;">
+                        <strong>Secret Engines</strong>
+                        <ul style="margin: 10px 0 0 20px;">
+                            <li>SecretEngineMount</li>
+                            <li>DatabaseSecretEngineConfig</li>
+                            <li>AWSSecretEngineConfig</li>
+                            <li>AzureSecretEngineConfig</li>
+                        </ul>
+                    </div>
+                    <div style="background: #f0f0f0; padding: 15px; border-radius: 8px;">
+                        <strong>Identity & Policy</strong>
+                        <ul style="margin: 10px 0 0 20px;">
+                            <li>Policy</li>
+                            <li>Entity / EntityAlias</li>
+                            <li>Group / GroupAlias</li>
+                            <li>PasswordPolicy</li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <h4>Configuration-as-Code Example</h4>
+                <pre><code>apiVersion: redhatcop.redhat.io/v1alpha1
+kind: AWSSecretEngineConfig
+metadata:
+  name: aws-prod
+  namespace: vault-infra
+spec:
+  path: aws
+  authentication:
+    role: vault-admin
+    path: kubernetes
+  accessKey: AKIA...
+  region: us-east-1
+  rootCredentials:
+    secret:
+      name: aws-credentials</code></pre>
+                
+                <h4>Advantages & Disadvantages</h4>
+                <div class="comparison-grid">
+                    <div class="comparison-item">
+                        <h4>✅ Advantages</h4>
+                        <div class="pros">
+                            <h5>Declarative</h5>
+                            <p>All configs in git with full audit trail</p>
+                            <h5>Drift Detection</h5>
+                            <p>Auto-repairs manual changes every 10hrs</p>
+                            <h5>GitOps-Native</h5>
+                            <p>Works with ArgoCD, Helm, Kustomize</p>
+                            <h5>Bulk Provisioning</h5>
+                            <p>Apply 100+ CRDs in one commit</p>
+                            <h5>Multi-Tenancy</h5>
+                            <p>Namespace isolation via Vault roles</p>
+                        </div>
+                    </div>
+                    <div class="comparison-item">
+                        <h4>❌ Disadvantages</h4>
+                        <div class="cons">
+                            <h5>No Diagnostics</h5>
+                            <p>Can't ask "why is this failing?"</p>
+                            <h5>Rigid Workflow</h5>
+                            <p>Must create/update CRDs; no one-off commands</p>
+                            <h5>Learning Curve</h5>
+                            <p>100+ CRD types, 30+ fields each</p>
+                            <h5>Slow Feedback</h5>
+                            <p>10-hour drift detection cycle</p>
+                            <h5>No Intelligence</h5>
+                            <p>Just applies YAML; no validation</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <h3>3️⃣ MCP Policy-Gate</h3>
+                
+                <h4>What It Is</h4>
+                <p>AI-SDLC governance layer with four policy gates for any LLM-based agent.</p>
+                
+                <h4>The Four Gates</h4>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; margin: 20px 0;">
+                    <div style="border-left: 4px solid #667eea; padding-left: 15px;">
+                        <h5 style="color: #667eea;">🎯 Gate 1: Prompt Review</h5>
+                        <p>Checks agent prompts for jailbreak patterns, enforces required patterns (mask, risk assessment), enforces max length</p>
+                    </div>
+                    <div style="border-left: 4px solid #764ba2; padding-left: 15px;">
+                        <h5 style="color: #764ba2;">📋 Gate 2: Tool Manifest</h5>
+                        <p>Flags unclassified tools, requires sign-off for high/critical risk changes, detects drift from baseline</p>
+                    </div>
+                    <div style="border-left: 4px solid #ff6b6b; padding-left: 15px;">
+                        <h5 style="color: #ff6b6b;">🔍 Gate 3: MCP Server Vetting</h5>
+                        <p>Validates command allowlist, version pinning, domain allowlist, no plaintext secrets</p>
+                    </div>
+                    <div style="border-left: 4px solid #28a745; padding-left: 15px;">
+                        <h5 style="color: #28a745;">✅ Gate 4: Eval Suite</h5>
+                        <p>Golden transcripts regression testing, blocking vs warning severities, prevents behavioral drift</p>
+                    </div>
+                </div>
+                
+                <h4>Policy-as-Code Example</h4>
+                <pre><code>policies/prompt_policy.yaml:
+
+forbidden_patterns:
+  - pattern: "ignore (all|any|previous) instructions"
+    reason: "Jailbreak prevention"
+  - pattern: "disable (safety|guardrails)"
+    reason: "Safety must not be disabled"
+
+required_patterns:
+  - pattern: "mask"
+    reason: "Agent must mask sensitive values"
+  - pattern: "risk"
+    reason: "Agent must assess risk before acting"
+
+max_length_chars: 4000</code></pre>
+            </section>
+            
+            <!-- OVERLAPS SECTION -->
+            <section id="overlaps">
+                <h2>🔗 Overlap Analysis</h2>
+                
+                <h3>Direct Overlaps (Conflict Risk)</h3>
+                
+                <div class="highlight danger">
+                    <h4>1️⃣ Vault Configuration Creation</h4>
+                    <table style="margin-top: 15px;">
+                        <tr>
+                            <th>System</th>
+                            <th>How</th>
+                            <th>Problem</th>
+                        </tr>
+                        <tr>
+                            <td><strong>Vault-Agent</strong></td>
+                            <td>User chat: "Configure AWS auth" → LLM calls Vault API</td>
+                            <td>No audit trail, no version control</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Operator</strong></td>
+                            <td><code>AWSSecretEngineConfig</code> CRD → controller writes</td>
+                            <td>Declarative, audited</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Collision</strong></td>
+                            <td colspan="2"><strong>Both apply configs</strong> → last write wins → lost changes</td>
+                        </tr>
+                    </table>
+                </div>
+                
+                <div class="highlight danger">
+                    <h4>2️⃣ Policy Management</h4>
+                    <p>Both can mutate <code>/sys/policy/...</code> in Vault. Agent via CLI, Operator via CRD.</p>
+                </div>
+                
+                <div class="highlight danger">
+                    <h4>3️⃣ Secret Creation (KV, Database)</h4>
+                    <p>Both can create database roles and other secrets without coordination.</p>
+                </div>
+                
+                <div class="highlight danger">
+                    <h4>4️⃣ Secret Rotation</h4>
+                    <p>Conflicting rotation triggers from agent and <code>RandomSecret</code> CRD.</p>
+                </div>
+                
+                <h3>What ONLY Vault-Agent Does</h3>
+                <div class="info highlight">
+                    <ul>
+                        <li><strong>Diagnostics & troubleshooting:</strong> "Why is the cluster unhealthy?"</li>
+                        <li><strong>AZ-failure detection:</strong> Analyze failed zones, decide unseal strategy</li>
+                        <li><strong>Emergency seal/unseal:</strong> Cluster outage response</li>
+                        <li><strong>Interactive decision-making:</strong> User approves risk assessment</li>
+                        <li><strong>Real-time monitoring:</strong> Poll cluster health every 20 seconds</li>
+                    </ul>
+                </div>
+                
+                <h3>What ONLY Operator Does</h3>
+                <div class="info highlight">
+                    <ul>
+                        <li><strong>Declarative state management:</strong> "All configs live in git CRDs"</li>
+                        <li><strong>Drift detection:</strong> Auto-repair manual changes every 10 hours</li>
+                        <li><strong>GitOps integration:</strong> Works with ArgoCD, Helm, Kustomize</li>
+                        <li><strong>Bulk provisioning:</strong> Apply 100+ CRDs in one commit</li>
+                        <li><strong>Multi-tenancy:</strong> Different namespaces have different Vault roles</li>
+                        <li><strong>Lifecycle management:</strong> Finalizers clean up on CRD deletion</li>
+                        <li><strong>Full audit trail:</strong> K8s etcd + git history</li>
+                    </ul>
+                </div>
+            </section>
+            
+            <!-- INTEGRATION SECTION -->
+            <section id="integration">
+                <h2>🏛️ Integration Strategy: Complementary Deployment Model</h2>
+                
+                <h3>Proposed Architecture</h3>
+                <div class="diagram-container">
+                    <div class="mermaid">
+graph TB
+    subgraph Vault["🔑 Vault Cluster<br/>(Production)"]
+        SoT["Source of Truth<br/>Policies | Auth | Secrets"]
+    end
+    
+    subgraph Operator["⚙️ OPERATOR"]
+        O1["Declarative State<br/>Management"]
+        O2["Auto-heal Drift<br/>10hr Cycle"]
+        O3["GitOps Workflow<br/>CRDs in Git"]
+    end
+    
+    subgraph Agent["🤖 AGENT-LLM"]
+        A1["Diagnostics &<br/>Troubleshooting"]
+        A2["LLM Intelligence<br/>Decision Support"]
+        A3["Emergency Ops<br/>Rare Actions"]
+    end
+    
+    subgraph Gate["🛡️ MCP POLICY-GATE"]
+        G1["Prompt Safety<br/>Jailbreak Prevention"]
+        G2["Tool Governance<br/>Risk Classification"]
+        G3["Eval Regression<br/>Golden Transcripts"]
+    end
+    
+    Git["📦 Git Repo<br/>IaC | Policies"]
+    
+    Operator --> Vault
+    Agent --> Vault
+    Gate --> Operator
+    Gate --> Agent
+    Git --> Operator
+    
+    style Vault fill:#dc3545,color:#fff
+    style Operator fill:#28a745,color:#fff
+    style Agent fill:#667eea,color:#fff
+    style Gate fill:#ffc107,color:#000
+    style Git fill:#764ba2,color:#fff
+                    </div>
+                </div>
+                
+                <h3>Four-Phase Implementation</h3>
+                
+                <h4>Phase 1: Operator as Declarative Base</h4>
+                <div class="timeline">
+                    <div class="timeline-item">
+                        <h4>Migrate all configs to CRDs</h4>
+                        <p>Policies → <code>Policy</code> CRDs from <code>policies/</code> repo</p>
+                        <p>Auth engines → <code>AuthEngineMount</code> CRDs</p>
+                        <p>Database roles → <code>DatabaseSecretEngineRole</code> CRDs</p>
+                    </div>
+                    <div class="timeline-item">
+                        <h4>Store all CRDs in Git</h4>
+                        <p>Feature branch → PR → review → merge → operator auto-applies</p>
+                    </div>
+                    <div class="timeline-item">
+                        <h4>Use Helm/Kustomize overlays</h4>
+                        <p>Multi-env management (dev/staging/prod)</p>
+                    </div>
+                    <div class="timeline-item">
+                        <h4>Validate reconciliation</h4>
+                        <p>Confirm all resources reconcile successfully</p>
+                    </div>
+                </div>
+                
+                <h4>Phase 2: Agent Becomes Read-Only + Observability</h4>
+                <div class="timeline">
+                    <div class="timeline-item">
+                        <h4>Disable write tools</h4>
+                        <p>Make <code>run_vault_command()</code> readonly (ACL policy enforces)</p>
+                    </div>
+                    <div class="timeline-item">
+                        <h4>Add new tools</h4>
+                        <p><code>get_operator_crds()</code> - read K8s CRD status</p>
+                        <p><code>suggest_crd_patch()</code> - propose YAML changes (no apply)</p>
+                    </div>
+                    <div class="timeline-item">
+                        <h4>Update system prompt</h4>
+                        <p>"Link to operator CRD workflow" for config changes</p>
+                    </div>
+                    <div class="timeline-item">
+                        <h4>Test thoroughly</h4>
+                        <p>Verify reads work, writes fail gracefully</p>
+                    </div>
+                </div>
+                
+                <h4>Phase 3: Policy-Gate Extensions for Vault</h4>
+                <div class="timeline">
+                    <div class="timeline-item">
+                        <h4>Create Vault-specific policies</h4>
+                        <p><code>policies/vault_prompt_policy.yaml</code> - agent anti-patterns</p>
+                    </div>
+                    <div class="timeline-item">
+                        <h4>Add new MCP gates</h4>
+                        <p><code>vet_operator_policies()</code> - validate policy security</p>
+                        <p><code>vet_agent_vault_instructions()</code> - check prompts for anti-patterns</p>
+                    </div>
+                    <div class="timeline-item">
+                        <h4>Wire into CI</h4>
+                        <p>GitHub Actions gates PRs before merge</p>
+                    </div>
+                    <div class="timeline-item">
+                        <h4>Create Vault-Agent profile</h4>
+                        <p><code>profiles/vault-agent.yaml</code> in MCP</p>
+                    </div>
+                </div>
+                
+                <h4>Phase 4: Governance & Documentation</h4>
+                <div class="timeline">
+                    <div class="timeline-item">
+                        <h4>Create runbooks</h4>
+                        <p>"How to fix Vault issues via operator CRDs"</p>
+                        <p>"How to add a new policy" (policies/ → operator sync)</p>
+                        <p>"Emergency seal/unseal approval workflow"</p>
+                    </div>
+                    <div class="timeline-item">
+                        <h4>Update monitoring</h4>
+                        <p>Alert if operator drift detection fails</p>
+                    </div>
+                    <div class="timeline-item">
+                        <h4>MCP policy-gate sign-off</h4>
+                        <p>Require sign-off for agent prompt changes</p>
+                    </div>
+                    <div class="timeline-item">
+                        <h4>User training</h4>
+                        <p>Learn operator CRD workflow, git-first mindset</p>
+                    </div>
+                </div>
+                
+                <h3>Elimination of Overlaps</h3>
+                <table>
+                    <tr>
+                        <th>Aspect</th>
+                        <th>Before</th>
+                        <th>After</th>
+                    </tr>
+                    <tr>
+                        <td><strong>Configuration Creation</strong></td>
+                        <td>❌ Both agent & operator can write</td>
+                        <td>✅ Operator sole authority; Agent recommends only</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Policy Management</strong></td>
+                        <td>❌ Scattered (CLI, agent, manual)</td>
+                        <td>✅ Single source of truth (policies/ repo → operator CRDs)</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Secret Rotation</strong></td>
+                        <td>❌ Conflicting rotation triggers</td>
+                        <td>✅ Operator owns rotation; Agent monitors only</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Diagnostics</strong></td>
+                        <td>⚠️ Agent only (no overlap)</td>
+                        <td>✅ Agent sole owner; Recommends fixes (no apply)</td>
+                    </tr>
+                </table>
+            </section>
+            
+            <!-- PHASES SECTION -->
+            <section id="phases">
+                <h2>📅 Implementation Roadmap (14 Days)</h2>
+                
+                <h3>Week 1: Foundation</h3>
+                <table>
+                    <tr>
+                        <th>Day</th>
+                        <th>Task</th>
+                        <th>Deliverable</th>
+                    </tr>
+                    <tr>
+                        <td><strong>1-3</strong></td>
+                        <td>Deploy operator in prod K8s cluster</td>
+                        <td>Operator pod running, ready for CRDs</td>
+                    </tr>
+                    <tr>
+                        <td><strong>4-5</strong></td>
+                        <td>Create <code>Policy</code> CRDs from <code>policies/</code> repo</td>
+                        <td>All policies synced to operator</td>
+                    </tr>
+                    <tr>
+                        <td><strong>6-7</strong></td>
+                        <td>Create <code>AuthEngineMount</code> + <code>KubernetesAuthEngineConfig</code> CRDs</td>
+                        <td>Auth engines managed by operator</td>
+                    </tr>
+                </table>
+                
+                <h3>Week 2: Agent & Governance</h3>
+                <table>
+                    <tr>
+                        <th>Day</th>
+                        <th>Task</th>
+                        <th>Deliverable</th>
+                    </tr>
+                    <tr>
+                        <td><strong>8</strong></td>
+                        <td>Disable agent write mode; add read-only tools</td>
+                        <td>Agent can read Vault, not write (except emergency)</td>
+                    </tr>
+                    <tr>
+                        <td><strong>9</strong></td>
+                        <td>Update agent system prompt & tool set</td>
+                        <td>Agent recommends CRD workflow for changes</td>
+                    </tr>
+                    <tr>
+                        <td><strong>10-11</strong></td>
+                        <td>Add Vault-specific MCP policy gates</td>
+                        <td>MCP server validates policies + agent prompts</td>
+                    </tr>
+                    <tr>
+                        <td><strong>12-13</strong></td>
+                        <td>Smoke tests + documentation</td>
+                        <td>All systems integration tested</td>
+                    </tr>
+                    <tr>
+                        <td><strong>14</strong></td>
+                        <td>Cutover & user training</td>
+                        <td>Production ready</td>
+                    </tr>
+                </table>
+            </section>
+            
+            <!-- OUTCOMES SECTION -->
+            <section id="outcomes">
+                <h2>🎯 Expected Outcomes</h2>
+                
+                <table>
+                    <tr>
+                        <th>Aspect</th>
+                        <th>Before Integration</th>
+                        <th>After Integration</th>
+                    </tr>
+                    <tr>
+                        <td><strong>Config Auditing</strong></td>
+                        <td>Chat history only (not searchable)</td>
+                        <td>Git diffs + K8s etcd audit log (full compliance)</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Rollback Capability</strong></td>
+                        <td>Manual (hope it works)</td>
+                        <td><code>git revert</code> → operator auto-applies (deterministic)</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Multi-Env Management</strong></td>
+                        <td>Separate agent instances</td>
+                        <td>Single operator, env-specific CRDs (Helm overlays)</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Incident Recovery</strong></td>
+                        <td>Run agent, pray it works</td>
+                        <td><code>kubectl apply -f manifests/</code> (guaranteed)</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Compliance Record</strong></td>
+                        <td>"We ran the agent once and..."</td>
+                        <td>Full git + etcd history (audit-ready)</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Agent Focus</strong></td>
+                        <td>50% config mgmt, 50% troubleshooting</td>
+                        <td>95% diagnostics, 5% emergency ops</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Governance</strong></td>
+                        <td>MCP gates prompts only</td>
+                        <td>Multi-layer: prompts + policies + CRDs all gated</td>
+                    </tr>
+                </table>
+                
+                <h3>Quantified Improvements</h3>
+                <div class="summary-cards">
+                    <div class="card">
+                        <h3>📊 Audit Compliance</h3>
+                        <p><strong>0% →100%</strong> - Every config change tracked in git with PR review trail</p>
+                    </div>
+                    <div class="card">
+                        <h3>⚡ Recovery Time</h3>
+                        <p><strong>~1 hour →5 minutes</strong> - Replay all Vault config from CRDs + git</p>
+                    </div>
+                    <div class="card">
+                        <h3>🔐 Security Posture</h3>
+                        <p><strong>Credential sprawl →Scoped roles</strong> - Agent has readonly; operator has admin</p>
+                    </div>
+                    <div class="card">
+                        <h3>🚀 Scalability</h3>
+                        <p><strong>Single-user →Multi-team</strong> - Namespace isolation via Vault roles</p>
+                    </div>
+                </div>
+            </section>
+            
+            <!-- CHECKLIST SECTION -->
+            <section id="checklist">
+                <h2>✅ Implementation Checklist</h2>
+                
+                <h3>Phase 1: Operator Setup</h3>
+                <ul class="checklist">
+                    <li>Deploy operator in production K8s cluster</li>
+                    <li>Create <code>Policy</code> CRDs for all policies from <code>policies/</code> repo</li>
+                    <li>Create <code>AuthEngineMount</code> + <code>KubernetesAuthEngineConfig</code> CRD</li>
+                    <li>Create <code>DatabaseSecretEngineConfig</code> + <code>DatabaseSecretEngineRole</code> CRDs</li>
+                    <li>Create <code>RandomSecret</code> for rotating credentials</li>
+                    <li>Validate all resources reconcile successfully</li>
+                    <li>Add finalizer cleanup tests</li>
+                </ul>
+                
+                <h3>Phase 2: Agent Migration</h3>
+                <ul class="checklist">
+                    <li>Disable <code>run_vault_command</code> for write operations</li>
+                    <li>Add <code>get_operator_crds()</code> tool</li>
+                    <li>Add <code>suggest_crd_patch()</code> tool</li>
+                    <li>Update system prompt with new directives</li>
+                    <li>Add MCP policy-gate tool calls to agent</li>
+                    <li>Test readonly mode thoroughly</li>
+                    <li>Verify emergency seal/unseal still works (with explicit approval)</li>
+                </ul>
+                
+                <h3>Phase 3: Policy-Gate Extensions</h3>
+                <ul class="checklist">
+                    <li>Create <code>policies/vault_prompt_policy.yaml</code></li>
+                    <li>Implement <code>vet_operator_policies()</code> MCP gate</li>
+                    <li>Implement <code>vet_agent_vault_instructions()</code> MCP gate</li>
+                    <li>Create <code>profiles/vault-agent.yaml</code></li>
+                    <li>Wire gates into Hashicorp-Azure-LLM CI workflow</li>
+                    <li>Test gates in dry-run mode first</li>
+                    <li>Update MCP eval suite for Vault-specific scenarios</li>
+                </ul>
+                
+                <h3>Phase 4: Governance & Rollout</h3>
+                <ul class="checklist">
+                    <li>Create runbook: "Fix Vault issues via operator CRDs"</li>
+                    <li>Create runbook: "Add new policy" (policies/ → operator sync)</li>
+                    <li>Create runbook: "Emergency seal/unseal approval workflow"</li>
+                    <li>Add monitoring alerts for operator drift detection failures</li>
+                    <li>Update security policy documentation</li>
+                    <li>Train users on new CRD-first workflow</li>
+                    <li>Archive old chat-based config scripts</li>
+                    <li>Monitor first week for issues</li>
+                </ul>
+            </section>
+            
+            <!-- FOOTER -->
+            <section style="background: #f9f9f9; text-align: center; margin-top: 60px;">
+                <h3>📚 Full Documentation</h3>
+                <p>For detailed implementation guides, code examples, and API references, see:</p>
+                <div style="margin-top: 20px;">
+                    <a href="VAULT_OPERATOR_AGENT_INTEGRATION_ANALYSIS.md" style="color: #667eea; font-weight: 600; text-decoration: none;">
+                        → Full Integration Analysis Document
+                    </a>
+                </div>
+                <p style="margin-top: 20px; color: #999; font-size: 0.9em;">
+                    Generated: 2026-08-19 | Repositories: Hashicorp-Azure-LLM, vault-config-operator, MCP, policies
+                </p>
+            </section>
+        </div>
+    </main>
+    
+    <footer>
+        <div class="container">
+            <h3>Vault Integration Architecture Guide</h3>
+            <p style="margin-top: 10px;">A comprehensive blueprint for integrating LLM agents with declarative Kubernetes operators and AI-SDLC governance</p>
+            <p style="margin-top: 20px; opacity: 0.8;">© 2026 | Created for HashiCorp Vault Ecosystem</p>
+        </div>
+    </footer>
+    
+    <div class="back-to-top" onclick="window.scrollTo({top: 0, behavior: 'smooth'})">↑</div>
+    
+    <script>
+        // Show/hide back-to-top button
+        window.addEventListener('scroll', function() {
+            const btn = document.querySelector('.back-to-top');
+            if (window.pageYOffset > 300) {
+                btn.classList.add('show');
+            } else {
+                btn.classList.remove('show');
+            }
+        });
+        
+        // Initialize Mermaid
+        mermaid.initialize({ startOnLoad: true, theme: 'default' });
+        mermaid.contentLoaded();
+    </script>
+</body>
+</html>
