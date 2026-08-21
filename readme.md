@@ -17,6 +17,7 @@
 > The goal is to complete all of this without introducing disruption. If you encounter any issues along the way, please let me know as always.
 
 - [Vault Config Operator](#vault-config-operator)
+  - [Operator agent validation](#operator-agent-validation)
   - [Authentication Engines](#authentication-engines)
   - [Policy management](#policy-management)
   - [Secret Engines](#secret-engines)
@@ -60,6 +61,55 @@ There are two main principles through all of the capabilities of this operator:
 
 1. high-fidelity API. The CRD exposed by this operator reflect field by field the Vault APIs. This is because we don't want to make any assumption on the kinds of configuration workflow that user will set up. That being said the Vault API is very extensive and we are starting with enough API coverage to support, we think, some simple and very common configuration workflows.
 2. attention to security (after all we are integrating with a security tool). To prevent credential leaks we give no permissions to the operator itself against Vault. All APIs exposed by this operator contains enough information to authenticate to Vault using a local service account (local to the namespace where the API exist). In other word for a namespace user to be abel to successfully configure Vault, a service account in that namespace must have been previously given the needed Vault permissions.
+
+## Operator agent validation
+
+The cross-repository validation checks that:
+
+- this operator's generated CRDs and Go tests pass;
+- USEA declares `vault-config-operator` as the sole Vault configuration writer;
+- MCP accepts the Vault Agent prompt, tools, server configuration, and blocking evaluations; and
+- the LLM agent refuses direct writes in read-only mode and exposes operator CRD suggestions.
+
+The following are the exact commands used for validation in the local workspace:
+
+```bash
+export DEV_ROOT=/Users/wolfpacker/development
+
+printf '\n[1/4] Operator unit suite\n'
+cd "$DEV_ROOT/vault-config-operator"
+make test
+
+printf '\n[2/4] USEA operator handoff\n'
+cd "$DEV_ROOT/USEA"
+.venv/bin/python -m pytest tests/test_vault_operator_handoff.py -q
+
+printf '\n[3/4] MCP Vault Agent gates\n'
+cd "$DEV_ROOT/MCP"
+"$DEV_ROOT/Hashicorp-Azure-LLM/.venv/bin/python" -m policy_gate.cli \
+  --profile vault-agent \
+  check-all "$DEV_ROOT/Hashicorp-Azure-LLM" \
+  --eval-mode static
+
+printf '\n[4/4] LLM read-only boundary\n'
+cd "$DEV_ROOT/Hashicorp-Azure-LLM"
+.venv/bin/python -m unittest \
+  tests.test_vault_agent_runtime.VaultCommandDryRunTests.test_readonly_explicit_mutation_is_denied_before_execution \
+  tests.test_vault_agent_runtime.VaultCommandDryRunTests.test_readonly_tools_include_operator_crd_suggestions \
+  -v
+
+printf '\nALL CROSS-REPOSITORY OPERATOR VALIDATIONS PASSED\n'
+```
+
+Successful MCP output contains four `[PASS]` results, USEA reports `1 passed`,
+the LLM boundary reports two passing tests, and the final line is:
+
+```text
+ALL CROSS-REPOSITORY OPERATOR VALIDATIONS PASSED
+```
+
+See [Operator Agent Quick Test](docs/OPERATOR_AGENT_QUICK_TEST.md) for environment setup,
+individual pass criteria, failure triage, and optional server-side CRD reconciliation.
 
 Currently this operator covers the following Vault APIs:
 
