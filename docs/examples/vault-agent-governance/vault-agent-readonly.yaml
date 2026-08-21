@@ -1,0 +1,57 @@
+apiVersion: redhatcop.redhat.io/v1alpha1
+kind: Policy
+metadata:
+  name: vault-agent-readonly
+  namespace: vault-agents
+spec:
+  authentication:
+    path: kubernetes
+    role: policy-admin
+  policy: |
+    path "sys/health" {
+      capabilities = ["read"]
+    }
+
+    path "sys/seal-status" {
+      capabilities = ["read"]
+    }
+
+    path "sys/auth" {
+      capabilities = ["read"]
+    }
+
+    path "sys/mounts" {
+      capabilities = ["read"]
+    }
+
+    path "sys/policies/acl" {
+      capabilities = ["list"]
+    }
+
+    path "identity/entity/id" {
+      capabilities = ["list"]
+    }
+
+    path "identity/group/id" {
+      capabilities = ["list"]
+    }
+---
+apiVersion: redhatcop.redhat.io/v1alpha1
+kind: KubernetesAuthEngineRole
+metadata:
+  name: vault-agent-readonly
+  namespace: vault-agents
+spec:
+  authentication:
+    path: kubernetes
+    role: policy-admin
+  path: kubernetes
+  aliasNameSource: serviceaccount_uid
+  tokenType: default
+  policies:
+    - vault-agent-readonly
+  targetServiceAccounts:
+    - vault-agent
+  targetNamespaces:
+    targetNamespaces:
+      - vault-agents

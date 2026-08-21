@@ -2,6 +2,11 @@
 
 **A Browser-Friendly Interactive Guide to Vault-Agent + Operator + MCP Policy-Gate**
 
+Deployable manifests for the recommended read-only agent boundary are in
+[`docs/examples/vault-agent-governance`](examples/vault-agent-governance/README.md).
+The agent may recommend these resources, but only the operator reconciles them
+to Vault.
+
 ---
 
 ## 📊 Quick Overview
