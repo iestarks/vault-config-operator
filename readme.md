@@ -17,6 +17,7 @@
 > The goal is to complete all of this without introducing disruption. If you encounter any issues along the way, please let me know as always.
 
 - [Vault Config Operator](#vault-config-operator)
+  - [In simple terms: what, why, and when](#in-simple-terms-what-why-and-when)
   - [Operator agent validation](#operator-agent-validation)
   - [Authentication Engines](#authentication-engines)
   - [Policy management](#policy-management)
@@ -61,6 +62,28 @@ There are two main principles through all of the capabilities of this operator:
 
 1. high-fidelity API. The CRD exposed by this operator reflect field by field the Vault APIs. This is because we don't want to make any assumption on the kinds of configuration workflow that user will set up. That being said the Vault API is very extensive and we are starting with enough API coverage to support, we think, some simple and very common configuration workflows.
 2. attention to security (after all we are integrating with a security tool). To prevent credential leaks we give no permissions to the operator itself against Vault. All APIs exposed by this operator contains enough information to authenticate to Vault using a local service account (local to the namespace where the API exist). In other word for a namespace user to be abel to successfully configure Vault, a service account in that namespace must have been previously given the needed Vault permissions.
+
+## In simple terms: what, why, and when
+
+**What it is:** A translator between Kubernetes and HashiCorp Vault. Instead of manually running Vault CLI commands or API calls to configure Vault (auth methods, policies, secret engines, etc.), you create ordinary Kubernetes YAML resources (Custom Resources), and this operator applies them to Vault for you.
+
+**Why you'd use it:**
+- **GitOps-friendly** — Vault configuration becomes YAML that lives in Git, gets reviewed like any other change, and is applied the same way you manage other Kubernetes resources (e.g. with ArgoCD/Flux).
+- **Security by design** — the operator itself has no permissions in Vault. Every Custom Resource must supply its own credentials (a local Kubernetes service account that has already been granted Vault permissions), so teams can only configure the parts of Vault they've explicitly been given access to.
+- **Consistency** — the CRDs mirror Vault's real API fields, so if you already know Vault's API, you already know how to fill out the YAML.
+
+**When to use it:**
+- You run Vault alongside Kubernetes and want application teams to self-service configure their own auth roles, policies, or secrets, without giving them direct Vault admin access.
+- You want Vault setup to be reproducible and version-controlled instead of done by hand.
+- You need pods to consume secrets from Vault (database credentials, PKI certs, etc.) and want the wiring (auth engine, roles, policies) managed declaratively.
+
+**How you'd use it, at a high level:**
+1. [Deploy the operator](#deploying-the-operator) into your cluster (via OperatorHub or Helm).
+2. Set up [the common authentication section](#the-common-authentication-section), which tells the operator which Vault instance and which local Kubernetes service account to use.
+3. Create Custom Resources for what you need: [Authentication Engines](#authentication-engines) (how workloads authenticate), [Policy management](#policy-management) (what they're allowed to do), [Secret Engines](#secret-engines) (where/how secrets are generated), and [Secret Management](#secret-management) (syncing a Vault secret into a Kubernetes Secret).
+4. The operator continuously reconciles these resources — if a resource changes, Vault is updated to match.
+
+See the [End to end example](#end-to-end-example) for a full walk-through using real YAML.
 
 ## Operator agent validation
 
