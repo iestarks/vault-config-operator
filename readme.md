@@ -92,40 +92,50 @@ The cross-repository validation checks that:
 - this operator's generated CRDs and Go tests pass;
 - USEA declares `vault-config-operator` as the sole Vault configuration writer;
 - MCP accepts the Vault Agent prompt, tools, server configuration, and blocking evaluations; and
-- the LLM agent refuses direct writes in read-only mode and exposes operator CRD suggestions.
+- the LLM agent refuses direct writes in read-only mode and exposes operator CRD suggestions; and
+- siem-soar explicitly audits, remediates, verifies, promotes, and escalates operator findings while preserving that sole-writer boundary.
 
 The following are the exact commands used for validation in the local workspace:
 
 ```bash
 export DEV_ROOT=/Users/wolfpacker/development
 
-printf '\n[1/4] Operator unit suite\n'
+printf '\n[1/5] Operator unit suite\n'
 cd "$DEV_ROOT/vault-config-operator"
 make test
 
-printf '\n[2/4] USEA operator handoff\n'
+printf '\n[2/5] USEA operator handoff\n'
 cd "$DEV_ROOT/USEA"
 .venv/bin/python -m pytest tests/test_vault_operator_handoff.py -q
 
-printf '\n[3/4] MCP Vault Agent gates\n'
+printf '\n[3/5] MCP Vault Agent gates\n'
 cd "$DEV_ROOT/MCP"
 "$DEV_ROOT/Hashicorp-Azure-LLM/.venv/bin/python" -m policy_gate.cli \
   --profile vault-agent \
   check-all "$DEV_ROOT/Hashicorp-Azure-LLM" \
   --eval-mode static
 
-printf '\n[4/4] LLM read-only boundary\n'
+printf '\n[4/5] LLM read-only boundary\n'
 cd "$DEV_ROOT/Hashicorp-Azure-LLM"
 .venv/bin/python -m unittest \
   tests.test_vault_agent_runtime.VaultCommandDryRunTests.test_readonly_explicit_mutation_is_denied_before_execution \
   tests.test_vault_agent_runtime.VaultCommandDryRunTests.test_readonly_tools_include_operator_crd_suggestions \
   -v
 
+printf '\n[5/5] siem-soar operator governance\n'
+SIEM_SOAR_REPO="$DEV_ROOT/siem-soar"
+grep -q '| `vault-config-operator`' "$SIEM_SOAR_REPO/docs/AUDITING.md" &&
+grep -q 'sole approved writer' "$SIEM_SOAR_REPO/docs/REMEDIATION.md" &&
+grep -q 'Vault Config Operator Verification Path' "$SIEM_SOAR_REPO/docs/VERIFICATION.md" &&
+grep -q 'Vault Config Operator Incident Handling' "$SIEM_SOAR_REPO/docs/ESCALATION.md" &&
+grep -q 'Vault Config Operator Handling' "$SIEM_SOAR_REPO/README.md"
+
 printf '\nALL CROSS-REPOSITORY OPERATOR VALIDATIONS PASSED\n'
 ```
 
 Successful MCP output contains four `[PASS]` results, USEA reports `1 passed`,
-the LLM boundary reports two passing tests, and the final line is:
+the LLM boundary reports two passing tests, the siem-soar coverage checks exit
+`0`, and the final line is:
 
 ```text
 ALL CROSS-REPOSITORY OPERATOR VALIDATIONS PASSED
