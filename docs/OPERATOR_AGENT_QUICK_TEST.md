@@ -1,8 +1,8 @@
 # Operator Agent Quick Test
 
 Use this guide to validate the contract between `vault-config-operator` and the
-local MCP, USEA, and Hashicorp-Azure-LLM repositories. The default path is
-offline and does not write to Vault or Kubernetes.
+local MCP, USEA, Hashicorp-Azure-LLM, and siem-soar repositories. The default
+path is offline and does not write to Vault or Kubernetes.
 
 ## Expected boundary
 
@@ -12,6 +12,7 @@ offline and does not write to Vault or Kubernetes.
 | USEA | Vault configuration writes are handed off as `redhatcop.redhat.io/v1alpha1` CRDs requiring Git review. |
 | Hashicorp-Azure-LLM | A read-only agent refuses direct Vault writes and suggests an operator CRD. |
 | vault-config-operator | Reviewed CRDs are the only path that reconciles configuration into Vault. |
+| siem-soar | Operator findings are audited, remediated, verified, promoted, and escalated without bypassing the sole-writer boundary. |
 
 ## Prerequisites
 
@@ -28,6 +29,7 @@ export OPERATOR_REPO="$DEV_ROOT/vault-config-operator"
 export MCP_REPO="$DEV_ROOT/MCP"
 export USEA_REPO="$DEV_ROOT/USEA"
 export LLM_REPO="$DEV_ROOT/Hashicorp-Azure-LLM"
+export SIEM_SOAR_REPO="$DEV_ROOT/siem-soar"
 ```
 
 ## 1. Test the operator
@@ -142,7 +144,21 @@ Inspect the response for the operator API version and a `Policy` manifest. Do
 not accept a response that claims it wrote directly to Vault or already applied
 the CRD.
 
-## 5. Optional cluster reconciliation
+## 5. Test siem-soar governance coverage
+
+```bash
+grep -q '| `vault-config-operator`' "$SIEM_SOAR_REPO/docs/AUDITING.md" &&
+grep -q 'sole approved writer' "$SIEM_SOAR_REPO/docs/REMEDIATION.md" &&
+grep -q 'Vault Config Operator Verification Path' "$SIEM_SOAR_REPO/docs/VERIFICATION.md" &&
+grep -q 'Vault Config Operator Incident Handling' "$SIEM_SOAR_REPO/docs/ESCALATION.md" &&
+grep -q 'Vault Config Operator Handling' "$SIEM_SOAR_REPO/README.md"
+```
+
+Pass criteria: the command exits `0`. These checks prove that siem-soar treats
+the operator as an explicit governed repository across audit, remediation,
+verification, escalation, disaster recovery, and the top-level security loop.
+
+## 6. Optional cluster reconciliation
 
 Use only a disposable namespace and a reviewed manifest. Never apply an
 LLM-generated manifest directly.
@@ -185,5 +201,6 @@ kubectl delete namespace "$TEST_NAMESPACE"
 | MCP baseline or eval failure | Diff the LLM prompt/tool manifest and review `MCP/baselines/vault-agent` plus `MCP/evals/vault-agent_suite.yaml`. |
 | USEA handoff mismatch | Check `USEA/api/models.py` and `USEA/api/vault_integration_endpoints.py`; USEA must not mark the CRD applied. |
 | LLM attempts a direct write | Stop testing and inspect the read-only role plus `hashiscorp_agentic_ai/vault_agent_runtime.py`. |
+| siem-soar operator coverage missing | Restore the operator audit row, sole-writer remediation rule, verification path, and incident/DR handling before promotion. |
 | Server-side CRD rejection | Confirm API version, kind, namespace, authentication role, and installed CRDs. |
 | Reconciliation timeout | Inspect the resource conditions and operator logs; do not bypass Git review or grant the agent a Vault write token. |
