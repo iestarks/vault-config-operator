@@ -831,3 +831,31 @@ git push upstream -f <tagname>
 ```sh
 operator-sdk cleanup vault-config-operator -n vault-config-operator
 ```
+
+---
+
+## 🔒 Repository Security Notes
+
+This repository is **public** — hold it to the strictest hygiene standard:
+
+### Commit identity
+All commits must use the GitHub private noreply address
+(`52385943+iestarks@users.noreply.github.com`). Personal email addresses must
+not appear in commit metadata, source, tests, documentation, or the
+`_bmad-output/` artifacts (use placeholder identities such as
+`owner@example.com`).
+
+### Secrets
+No credentials are stored in this repository. Vault authentication is handled
+at runtime by namespace-scoped Kubernetes service accounts (see upstream notes
+below). If a secret ever lands here: revoke first, remove second, purge
+history third (`git filter-repo`).
+
+### Upstream relationship
+This is an **iestarks fork** of
+[redhat-cop/vault-config-operator](https://github.com/redhat-cop/vault-config-operator).
+Fork-specific development follows the BMAD methodology noted above; upstream
+contributions should be proposed against the redhat-cop repository. The
+hardened secret-scanning pipeline from
+[Hashicorp-Azure-LLM #77](https://github.com/iestarks/Hashicorp-Azure-LLM/pull/77)
+is the reference implementation recommended for adoption on this fork.
