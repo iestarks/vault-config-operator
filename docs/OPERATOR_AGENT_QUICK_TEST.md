@@ -8,7 +8,7 @@ path is offline and does not write to Vault or Kubernetes.
 
 | Component | Expected behavior |
 | --- | --- |
-| MCP | The Vault Agent profile passes prompt, tool, server, and regression gates. |
+| MCP | The USEA profile passes prompt, tool, server, and regression gates; Vault-agent runtime safety is checked separately. |
 | USEA | Vault configuration writes are handed off as `redhatcop.redhat.io/v1alpha1` CRDs requiring Git review. |
 | Hashicorp-Azure-LLM | A read-only agent refuses direct Vault writes and suggests an operator CRD. |
 | vault-config-operator | Reviewed CRDs are the only path that reconciles configuration into Vault. |
@@ -43,22 +43,26 @@ Pass criteria: the command exits `0`. This runs manifest generation, formatting,
 vetting, envtest setup, and Go unit tests. Use `make integration` only when a
 disposable Kind environment and its Vault dependencies are available.
 
-## 2. Test MCP governance against the LLM repo
+## 2. Test MCP governance against USEA
 
 Create the MCP environment once:
 
 ```bash
 cd "$MCP_REPO"
-python3 -m venv .venv
+export PYTHON_BIN="${PYTHON_BIN:-python3.11}"
+"$PYTHON_BIN" -c 'import sys; assert sys.version_info >= (3, 10), sys.version'
+"$PYTHON_BIN" -m venv --clear .venv
+.venv/bin/python -c 'import sys; assert sys.version_info >= (3, 10), sys.version'
+.venv/bin/python -m pip install --upgrade pip setuptools wheel
 .venv/bin/python -m pip install -e '.[dev]'
 ```
 
-Run the Vault Agent profile:
+Run the USEA profile:
 
 ```bash
 .venv/bin/python -m policy_gate.cli \
-  --profile vault-agent \
-  check-all "$LLM_REPO" \
+  --profile usea \
+  check-all "$USEA_REPO" \
   --eval-mode static
 ```
 
@@ -71,9 +75,11 @@ Pass criteria:
 [PASS] eval_regression
 ```
 
-The blocking evaluations prove that a direct Vault write is refused and that a
-configuration request routes to `suggest_operator_crd` without calling a Vault
-write tool.
+The MCP gates cover USEA's governed prompt, tools, MCP configuration, and
+regression fixtures. The Vault agent's direct-write refusal and
+`suggest_operator_crd` boundary are tested separately in Step 4 because MCP
+does not currently ship a `vault-agent` profile for the Hashicorp-Azure-LLM
+runtime.
 
 ## 3. Test the USEA handoff contract
 
@@ -81,43 +87,20 @@ Run the focused offline test:
 
 ```bash
 cd "$USEA_REPO"
-.venv/bin/python -m pytest tests/test_vault_operator_handoff.py -q
+.venv/bin/python -m pytest tests/test_operator_handoff.py -q
 ```
 
-Pass criteria: `1 passed`. The response model must declare:
+Pass criteria: the focused handoff suite passes. The rendered response must
+declare `apply: false`, `write_authority: vault-config-operator`, and
+`apiVersion: redhatcop.redhat.io/v1alpha1`, with a kind from the approved
+allowlist. Delivery must go to the operator bridge first and use GitOps only
+when the bridge is absent, unreachable, or returns 5xx; a 4xx rejection must
+remain a failed handoff.
 
-- `write_authority: vault-config-operator`
-- `api_version: redhatcop.redhat.io/v1alpha1`
-- `git_review_required: true`
-- `applied: false`
-- recommended kinds including `Policy` and `KubernetesAuthEngineRole`
-
-Optional local API check:
-
-```bash
-cd "$USEA_REPO"
-.venv/bin/python -m uvicorn api.main:app --host 127.0.0.1 --port 8000
-```
-
-In another terminal:
-
-```bash
-TOKEN="$(curl -fsS http://127.0.0.1:8000/v1/auth/demo | jq -r .access_token)"
-curl -fsS http://127.0.0.1:8000/v1/vault-integration/contract \
-  -H "Authorization: Bearer $TOKEN" \
-  -H 'Content-Type: application/json' \
-  -d '{
-    "session_id": "operator-quick-test",
-    "intent": "Create a read-only policy for the Vault agent",
-    "target": {"mount": "secret", "path": "apps/demo"},
-    "requested_keys": ["status"],
-    "environment": "staging"
-  }' | jq '{status, allowed, operator_handoff}'
-```
-
-Pass criteria: operations are read-only (`kv2_read` and
-`capabilities_self`), while `operator_handoff` identifies the operator and
-reports `applied: false`. Stop the local API with `Ctrl+C`.
+The suite covers the offline contract. Live testing additionally requires an
+authenticated administrator, configured `VAULT_AGENT_BRIDGE_URL`, and either
+the operator bridge or the GitHub fallback credentials. Stop any local test
+server with `Ctrl+C` after the live check.
 
 ## 4. Test the LLM read-only boundary
 
@@ -164,8 +147,18 @@ Use only a disposable namespace and a reviewed manifest. Never apply an
 LLM-generated manifest directly.
 
 ```bash
-export TEST_NAMESPACE=vault-agent-validation
-export MANIFEST=/path/to/reviewed-policy.yaml
+export TEST_NAMESPACE=vault-agents
+export MANIFEST="$OPERATOR_REPO/docs/examples/vault-agent-governance/vault-agent-readonly.yaml"
+export RESOURCE_KIND=policy
+export RESOURCE_NAME=vault-agent-readonly
+
+# Replace the example manifest and resource values above with the reviewed
+# manifest and resource you intend to test. Do not run placeholder values.
+: "${MANIFEST:?Set MANIFEST to a reviewed YAML file}"
+: "${RESOURCE_KIND:?Set RESOURCE_KIND, for example policy}"
+: "${RESOURCE_NAME:?Set RESOURCE_NAME to the resource metadata.name}"
+test -f "$MANIFEST"
+kubectl cluster-info >/dev/null
 
 kubectl create namespace "$TEST_NAMESPACE" --dry-run=client -o yaml | kubectl apply -f -
 kubectl apply --server-side --dry-run=server -n "$TEST_NAMESPACE" -f "$MANIFEST"
@@ -173,13 +166,16 @@ kubectl diff -n "$TEST_NAMESPACE" -f "$MANIFEST" || true
 kubectl apply -n "$TEST_NAMESPACE" -f "$MANIFEST"
 kubectl wait -n "$TEST_NAMESPACE" \
   --for=condition=ReconcileSuccessful \
-  policy/<policy-name> \
+  "$RESOURCE_KIND/$RESOURCE_NAME" \
   --timeout=120s
-kubectl get -n "$TEST_NAMESPACE" policy/<policy-name> -o yaml
+kubectl get -n "$TEST_NAMESPACE" "$RESOURCE_KIND/$RESOURCE_NAME" -o yaml
 ```
 
-Pass criteria: server-side validation succeeds and the resource reaches
-`ReconcileSuccessful=True`. Review operator logs if it does not:
+Pass criteria: `kubectl cluster-info` succeeds, server-side validation succeeds,
+and the resource reaches `ReconcileSuccessful=True`. A DNS or connection error
+from `kubectl cluster-info` means the selected context is unavailable; stop the
+live test and switch to a reachable non-production cluster before continuing.
+Review operator logs if reconciliation does not complete:
 
 ```bash
 kubectl logs -n vault-config-operator \

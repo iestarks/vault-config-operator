@@ -106,7 +106,7 @@ make test
 
 printf '\n[2/5] USEA operator handoff\n'
 cd "$DEV_ROOT/USEA"
-.venv/bin/python -m pytest tests/test_vault_operator_handoff.py -q
+.venv/bin/python -m pytest tests/test_operator_handoff.py -q
 
 printf '\n[3/5] MCP Vault Agent gates\n'
 cd "$DEV_ROOT/MCP"
