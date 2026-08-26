@@ -1,0 +1,25 @@
+apiVersion: redhatcop.redhat.io/v1alpha1
+kind: KubernetesAuthEngineRole
+metadata:
+  name: agent-a
+spec:
+  path: kubernetes
+  authentication:
+    path: kubernetes
+    role: vault-config-operator-manager
+    serviceAccount:
+      name: vault-config-operator-controller-manager
+  connection:
+    address: https://vault.starksenterprise.com:443
+    tLSConfig:
+      tlsSecret:
+        name: vault-internal-ca
+  policies:
+    - agent-a
+  targetNamespaces:
+    targetNamespaces:
+      - agents
+  targetServiceAccounts:
+    - agent-a
+  tokenTTL: 3600
+  tokenPeriod: 86400
