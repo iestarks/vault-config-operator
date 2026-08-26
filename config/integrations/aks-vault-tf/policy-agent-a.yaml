@@ -1,0 +1,27 @@
+apiVersion: redhatcop.redhat.io/v1alpha1
+kind: Policy
+metadata:
+  name: agent-a
+spec:
+  # Least privilege for workloads in the agents namespace
+  policy: |
+    # Least privilege for agents namespace workloads
+    path "kv2/data/agents/*" {
+      capabilities = ["read"]
+    }
+    path "kv2/metadata/agents/*" {
+      capabilities = ["list", "read"]
+    }
+    path "kv2/metadata/agents" {
+      capabilities = ["list"]
+    }
+  authentication:
+    path: kubernetes
+    role: vault-config-operator-manager
+    serviceAccount:
+      name: vault-config-operator-controller-manager
+  connection:
+    address: https://vault.starksenterprise.com:443
+    tLSConfig:
+      tlsSecret:
+        name: vault-internal-ca

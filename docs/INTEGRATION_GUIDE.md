@@ -1,6 +1,6 @@
 # 🏗️ Vault Integration Architecture Guide
 
-**A Browser-Friendly Interactive Guide to Vault-Agent + Operator + MCP Policy-Gate**
+**A Browser-Friendly Interactive Guide to Vault-Agent + USEA + Operator + MCP Policy-Gate**
 
 Deployable manifests for the recommended read-only agent boundary are in
 [`docs/examples/vault-agent-governance`](examples/vault-agent-governance/README.md).
@@ -16,8 +16,10 @@ Three complementary systems for managing HashiCorp Vault in production:
 ```mermaid
 graph TB
     subgraph Systems["🏛️ Three Systems"]
-        Agent["🤖 Vault-Agent<br/>(LLM-Powered)"]
+        Agent["🤖 Vault-Agent<br/>(CRD Renderer)"]
+        USEA["🧭 USEA<br/>(Validation + Routing)"]
         Operator["⚙️ Vault-Operator<br/>(Kubernetes Native)"]
+        Bridge["🔌 Operator Bridge<br/>(Primary Delivery)"]
         Gate["🛡️ MCP Policy-Gate<br/>(AI-SDLC Governance)"]
     end
     
@@ -31,17 +33,23 @@ graph TB
         Review["🔍 PR Review<br/>(Policy-Gate)"]
     end
     
-    Agent -.->|Observability| VaultAPI
+    Agent -->|Render only<br/>apply: false| USEA
+    USEA -->|Validate allowlisted CRD| Bridge
+    Bridge -->|Accepted manifest| Operator
+    USEA -.->|Fallback on absent, unreachable, or 5xx| GitOps
     Operator -->|Declarative| VaultAPI
     Gate -->|Governs| Agent
+    Gate -->|Governs| USEA
     Gate -->|Governs| Operator
     
-    Chat -->|Uses| Agent
-    GitOps -->|Uses| Operator
+    Chat -->|Explicit admin request| Agent
+    GitOps -->|Reviewed manifest| Operator
     Review -->|Uses| Gate
     
     style Agent fill:#667eea,color:#fff,stroke:#764ba2,stroke-width:2px
+    style USEA fill:#17a2b8,color:#fff,stroke:#117a8b,stroke-width:2px
     style Operator fill:#28a745,color:#fff,stroke:#1e7e34,stroke-width:2px
+    style Bridge fill:#20c997,color:#fff,stroke:#138f70,stroke-width:2px
     style Gate fill:#ffc107,color:#000,stroke:#ff9800,stroke-width:2px
     style VaultAPI fill:#dc3545,color:#fff,stroke:#b71c1c,stroke-width:2px
 ```
@@ -50,17 +58,19 @@ graph TB
 
 ## 🎯 The Problem
 
-Both `vault-agent` and `vault-config-operator` can **create/modify Vault configurations**, but **without coordination**:
+An ungoverned direct agent write could collide with the operator's declarative
+state. The integration blocks that path and routes configuration requests
+through USEA validation:
 
 ```mermaid
 graph LR
     subgraph Problem["❌ COLLISION RISK"]
-        Agent["Agent: 'Configure<br/>AWS auth'"]
+        Agent["Agent: 'Configure<br/>AWS auth'<br/>(direct write blocked)"]
         Operator["Operator: 'Apply<br/>AWSConfig CRD'"]
         Vault["Vault<br/>Config"]
     end
     
-    Agent -->|Writes| Vault
+    Agent -.->|Direct write blocked| Vault
     Operator -->|Writes| Vault
     
     Vault -->|"Last Write<br/>Wins"| Conflict["⚠️ CONFLICT<br/>Lost Changes<br/>No Audit Trail"]
@@ -87,7 +97,9 @@ graph LR
 ```mermaid
 graph TB
     subgraph Architecture["✅ COMPLEMENTARY ARCHITECTURE"]
-        Agent["🤖 AGENT<br/>Observability +<br/>Emergency Response<br/>(Read-Only)"]
+      Agent["🤖 AGENT<br/>Render proposal<br/>(Never applies)"]
+      USEA["🧭 USEA<br/>Validate + route"]
+      Bridge["🔌 OPERATOR BRIDGE<br/>Primary delivery"]
         Operator["⚙️ OPERATOR<br/>Declarative State<br/>Management<br/>(Write Authority)"]
         Gate["🛡️ POLICY-GATE<br/>Safety Governance<br/>(Oversight)"]
     end
@@ -97,18 +109,21 @@ graph TB
     end
     
     subgraph Git["📦 Git<br/>Single Source of Truth"]
-        CRDs["CRD Manifests<br/>in Git"]
+        CRDs["Reviewed CRD Manifests<br/>in Git"]
         Policies["Policies<br/>in Git"]
     end
     
-    Agent -->|Reads| VaultAPI
-    Agent -->|Suggests Fixes<br/>Not Applies| CRDs
+    Agent -->|Render only<br/>apply: false| USEA
+    USEA -->|Validate allowlisted CRD| Bridge
+    Bridge -->|Accepted CRD| Operator
+    USEA -.->|Absent, unreachable, or 5xx| CRDs
     
     Operator -->|Reads/Writes| VaultAPI
     Operator -->|Reconciles| CRDs
     Operator -->|Manages| Policies
     
     Gate -->|Reviews<br/>Blocks| Agent
+    Gate -->|Reviews<br/>Blocks| USEA
     Gate -->|Reviews<br/>Blocks| Operator
     Gate -->|Reviews<br/>Blocks| CRDs
     Gate -->|Reviews<br/>Blocks| Policies
@@ -117,6 +132,8 @@ graph TB
     Policies -->|Source| Operator
     
     style Agent fill:#667eea,color:#fff,stroke:#764ba2,stroke-width:3px
+    style USEA fill:#17a2b8,color:#fff,stroke:#117a8b,stroke-width:3px
+    style Bridge fill:#20c997,color:#fff,stroke:#138f70,stroke-width:3px
     style Operator fill:#28a745,color:#fff,stroke:#1e7e34,stroke-width:3px
     style Gate fill:#ffc107,color:#000,stroke:#ff9800,stroke-width:3px
     style VaultAPI fill:#dc3545,color:#fff,stroke:#b71c1c,stroke-width:2px

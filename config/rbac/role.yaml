@@ -91,6 +91,11 @@ rules:
   - jwtoidcauthengineroles
   - kubernetesauthengineconfigs
   - kubernetesauthengineroles
+  - cfauthengineconfigs
+  - cfauthengineroles
+  - alicloudauthengineroles
+  - radiusauthengineconfigs
+  - radiusauthengineusers
   - kubernetessecretengineconfigs
   - kubernetessecretengineroles
   - ldapauthengineconfigs
@@ -180,6 +185,11 @@ rules:
   - jwtoidcauthengineroles/finalizers
   - kubernetesauthengineconfigs/finalizers
   - kubernetesauthengineroles/finalizers
+  - cfauthengineconfigs/finalizers
+  - cfauthengineroles/finalizers
+  - alicloudauthengineroles/finalizers
+  - radiusauthengineconfigs/finalizers
+  - radiusauthengineusers/finalizers
   - kubernetessecretengineconfigs/finalizers
   - kubernetessecretengineroles/finalizers
   - ldapauthengineconfigs/finalizers
@@ -262,6 +272,11 @@ rules:
   - jwtoidcauthengineroles/status
   - kubernetesauthengineconfigs/status
   - kubernetesauthengineroles/status
+  - cfauthengineconfigs/status
+  - cfauthengineroles/status
+  - alicloudauthengineroles/status
+  - radiusauthengineconfigs/status
+  - radiusauthengineusers/status
   - kubernetessecretengineconfigs/status
   - kubernetessecretengineroles/status
   - ldapauthengineconfigs/status
