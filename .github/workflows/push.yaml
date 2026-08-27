@@ -23,6 +23,14 @@ permissions:
 jobs:
   shared-operator-workflow:
     name: shared-operator-workflow
+    # Fork gate: the upstream release pipeline hard-fails its setup job when
+    # REGISTRY_USERNAME/REGISTRY_PASSWORD are unset (it builds AND publishes
+    # operator/bundle images). This fork publishes nowhere, so every main push
+    # has failed since 2026-08-22. Skipped by default; to enable image
+    # publishing, set repo variable PUBLISH_OPERATOR_IMAGES=true AND the
+    # REGISTRY_* secrets (COMMUNITY_OPERATOR_PAT if targeting community
+    # operators). Unit/build coverage continues via pr.yaml on every PR.
+    if: vars.PUBLISH_OPERATOR_IMAGES == 'true'
     uses: redhat-cop/github-workflows-operators/.github/workflows/release-operator.yml@5b0493408637600ef9c71d2321337adac65153a3 # v1.1.6
     secrets:
       COMMUNITY_OPERATOR_PAT: ${{ secrets.COMMUNITY_OPERATOR_PAT }}
