@@ -1,0 +1,9 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: vault-config-operator
+resources:
+- policy-agent-a.yaml
+- kubernetesauthengineconfig.yaml
+- kubernetesauthenginerole-agent-a.yaml
+# All objects land in the operator namespace; Vault-side targets are encoded
+# in each spec (mount paths, namespaces, service accounts).

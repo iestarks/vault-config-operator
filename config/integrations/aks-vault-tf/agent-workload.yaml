@@ -1,0 +1,57 @@
+---
+# Sample workload demonstrating the federated identity flow codified above.
+# The ServiceAccount lives in `agents/` and its ServiceAccountToken is projected
+# automatically by the workload-identity webhook. AZURE_CLIENT_ID is required by
+# SDKs that authenticate via workload identity.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: agent-a
+  namespace: agents
+  labels:
+    app.kubernetes.io/name: agent-a
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: agent-a
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: agent-a
+        azure.workload.identity/use: "true"
+    spec:
+      serviceAccountName: agent-a
+      containers:
+        - name: agent
+          image: mcr.microsoft.com/azure-cli:latest
+          command: ["sleep", "infinity"]
+          env:
+            - name: AZURE_CLIENT_ID
+              value: a2198c5f-8c5f-4d63-9e13-e43fbe703f00
+            - name: AZURE_TENANT_ID
+              value: c58723e0-75d6-40ab-8459-3c21f3595622
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+---
+# Namespace + ServiceAccount are NOT reconciled by Vault CRs; the SA is the
+# federated-credential subject. Apply once (idempotent).
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: agents
+  labels:
+    azure.workload.identity/use: "true"
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: agent-a
+  namespace: agents
+  labels:
+    azure.workload.identity/use: "true"

@@ -1,0 +1,18 @@
+apiVersion: redhatcop.redhat.io/v1alpha1
+kind: KubernetesAuthEngineConfig
+metadata:
+  name: kubernetes
+spec:
+  # Manage the EXISTING kubernetes/ mount declaratively
+  path: kubernetes
+  authentication:
+    path: kubernetes
+    role: vault-config-operator-manager
+    serviceAccount:
+      name: vault-config-operator-controller-manager
+  connection:
+    address: https://vault.starksenterprise.com:443
+    tLSConfig:
+      tlsSecret:
+        name: vault-internal-ca
+  kubernetesHost: https://kubernetes.default.svc:443
