@@ -357,7 +357,7 @@ func TestSSHSecretEngineConfig_PrepareInternalValues_GenerateSigningKey(t *testi
 func TestSSHSecretEngineConfig_PrepareInternalValues_FromSecret(t *testing.T) {
 	ns := "ns-ssh-se"
 	sec := newK8sSecret(ns, "ssh-ca-key", map[string][]byte{
-		"private_key": []byte("-----BEGIN RSA PRIVATE KEY-----\nMIIE..."),
+		"private_key": []byte("test-private-key-placeholder"),
 		"public_key":  []byte("ssh-rsa AAAA..."),
 	})
 	kube := newFakeKubeClient(sec)
@@ -378,7 +378,7 @@ func TestSSHSecretEngineConfig_PrepareInternalValues_FromSecret(t *testing.T) {
 	if err := config.PrepareInternalValues(ctx, config); err != nil {
 		t.Fatalf("PrepareInternalValues: %v", err)
 	}
-	if config.Spec.retrievedPrivateKey != "-----BEGIN RSA PRIVATE KEY-----\nMIIE..." {
+	if config.Spec.retrievedPrivateKey != "test-private-key-placeholder" {
 		t.Errorf("retrievedPrivateKey = %q", config.Spec.retrievedPrivateKey)
 	}
 	if config.Spec.retrievedPublicKey != "ssh-rsa AAAA..." {
